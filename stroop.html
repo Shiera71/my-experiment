@@ -104,9 +104,15 @@
     let currentTimelineVariableContext = null;
     // 全試行のデータを蓄積するログ
     const trialDataLog = [];
+    // 参加者IDを保持するグローバル変数
+    let globalSubjectId = "";
 
     // グローバル jsPsych API のエミュレーション
     const jsPsych = {
+      // 画面の書き換えに使用する要素を取得する関数
+      getDisplayElement: function() {
+        return document.getElementById('jspsych-target');
+      },
       // タイムライン変数の解決関数
       timelineVariable: function(varName) {
         return function() {
@@ -144,7 +150,7 @@
             });
 
             // 終了後に画面にテキストエリアでCSVを出力
-            const target = document.getElementById('jspsych-target');
+            const target = jsPsych.getDisplayElement();
             target.innerHTML = `
               <div style="padding: 20px; text-align: left; font-family: sans-serif; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
                 <h3 style="margin-top:0; color:#333;">実験終了: 測定結果 (CSVデータ)</h3>
@@ -260,6 +266,11 @@
             trialData.rt = rt;
             trialData.response = responseKey;
 
+            // 参加者ID入力試行の反応値をグローバル変数に退避
+            if (trial.type === "survey-text") {
+              globalSubjectId = responseKey;
+            }
+
             if (trial.on_finish) {
               trial.on_finish(trialData);
             }
@@ -297,23 +308,66 @@
             return;
           }
 
-          // ② キーボード反応プラグインのエミュレーション
-          target.innerHTML = stimulus || "";
+          // ② 参加者情報入力 (survey-text) プラグインのエミュレーション
+          if (trial.type === "survey-text") {
+            const question = trial.questions[0];
+            const prompt = question.prompt || "参加者IDを入力してください：";
+            const placeholder = question.placeholder || "";
+            const buttonLabel = trial.button_label || "次へ";
+            
+            target.innerHTML = `
+              <div class="instructions" style="text-align: center;">
+                <p style="font-weight: bold; font-size: 22px; margin-bottom: 20px;">${prompt}</p>
+                <input type="text" id="participant-id-input" placeholder="${placeholder}" 
+                       style="font-size: 20px; padding: 10px; margin: 10px auto; width: 80%; max-width: 300px; text-align: center; border: 2px solid #ccc; border-radius: 6px; box-sizing: border-box; outline: none; display: block;">
+                <div id="survey-error" style="color: #ff3b30; font-size: 14px; margin-top: 5px; height: 20px;"></div>
+                <button id="jspsych-survey-btn" style="margin-top: 15px;">${buttonLabel}</button>
+              </div>
+            `;
+            
+            const btn = document.getElementById('jspsych-survey-btn');
+            const input = document.getElementById('participant-id-input');
+            const errorDiv = document.getElementById('survey-error');
+            input.focus();
 
-          // キー入力待ち
-          if (choices !== "NO_KEYS") {
-            keyListener = function(event) {
-              let pressedKey = event.key;
-              if (pressedKey === ' ') pressedKey = ' ';
-              
-              const isAllowed = !choices || choices.length === 0 || choices.includes(pressedKey.toLowerCase()) || choices.includes(pressedKey);
-              
-              if (isAllowed) {
-                const rt = performance.now() - startTime;
-                finishTrial(pressedKey, rt);
+            // Enterキーでも決定可能に
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                btn.click();
               }
-            };
-            window.addEventListener('keydown', keyListener);
+            });
+
+            btn.addEventListener('click', () => {
+              const val = input.value.trim();
+              if (val === "") {
+                errorDiv.innerText = "IDを入力してください。";
+                return;
+              }
+              const rt = performance.now() - startTime;
+              finishTrial(val, rt);
+            });
+            return;
+          }
+
+          // ③ キーボード反応プラグインのエミュレーション
+          if (trial.type === jsPsychHtmlKeyboardResponse) {
+            target.innerHTML = stimulus || "";
+
+            // キー入力待ち
+            if (choices !== "NO_KEYS") {
+              keyListener = function(event) {
+                let pressedKey = event.key;
+                if (pressedKey === ' ') pressedKey = ' ';
+                
+                const isAllowed = !choices || choices.length === 0 || choices.includes(pressedKey.toLowerCase()) || choices.includes(pressedKey);
+                
+                if (isAllowed) {
+                  const rt = performance.now() - startTime;
+                  finishTrial(pressedKey, rt);
+                }
+              };
+              window.addEventListener('keydown', keyListener);
+            }
           }
 
           // タイムアウト設定
@@ -343,24 +397,99 @@
       const jsPsychInstance = initJsPsych({
         display_element: 'jspsych-target',
         on_finish: function() {
-          jsPsych.data.displayData('csv');
+          // ① データの抽出・整形（response 以外の不要な試行を除去）
+          const filteredData = trialDataLog.filter(d => d.task === 'response');
+          const headers = ["subject_id", "timestamp", "word", "color", "condition", "rt", "correct"];
+          
+          let csvContent = headers.join(",") + "\n";
+          filteredData.forEach(data => {
+            const row = headers.map(header => {
+              let val = data[header];
+              if (val === undefined || val === null) return "";
+              val = String(val).replace(/"/g, '""');
+              if (val.includes(",") || val.includes("\n") || val.includes('"')) {
+                val = `"${val}"`;
+              }
+              return val;
+            });
+            csvContent += row.join(",") + "\n";
+          });
+
+          // ② データを送信中状態にする画面切り替え
+          const displayEl = jsPsych.getDisplayElement();
+          displayEl.innerHTML = `
+            <div class="instructions" style="text-align: center;">
+              <p>データを送信中です...</p>
+              <div style="border: 4px solid #f3f3f3; border-top: 4px solid #007aff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+              <style>
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              </style>
+            </div>
+          `;
+
+          // ③ JSON形式でGAS URLにPOSTで送信
+          const GAS_URL = 'https://script.google.com/macros/s/AKfycby8Yw-pV6f-iU5ToeCkAdJK_ZQAisblhX_0GSSj1Tov8oWqbwpjdMgeLnFWzyAMpCpaWQ/exec';
+          
+          const payload = filteredData.map(d => ({
+            subject_id: d.subject_id || "",
+            timestamp: d.timestamp || "",
+            word: d.word || "",
+            color: d.color || "",
+            condition: d.condition || "",
+            rt: d.rt || null,
+            correct: d.correct || "false"
+          }));
+
+          fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          })
+          .then(() => {
+            // ④ 送信完了後の表示
+            displayEl.innerHTML = `
+              <div class="instructions" style="text-align: center; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <p style="font-size: 26px; font-weight: bold; margin-bottom: 20px; color: #34c759;">実験終了</p>
+                <p>ご協力ありがとうございました。</p>
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 30px 0;">
+                <p style="font-size: 14px; text-align: left; color: #555; margin-bottom: 10px;">以下は送信されたデータ(CSV)です：</p>
+                <textarea readonly style="width: 100%; height: 180px; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; background:#fafafa; resize:none;">${csvContent}</textarea>
+              </div>
+            `;
+          })
+          .catch((error) => {
+            console.error('Data transmission failed:', error);
+            // エラー時のフォールバック画面
+            displayEl.innerHTML = `
+              <div class="instructions" style="text-align: center; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <p style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #ff3b30;">実験終了（送信失敗）</p>
+                <p>データの送信に失敗しました。インターネットの接続状況を確認してください。</p>
+                <p style="font-size: 14px; color: #333; margin-top: 10px;">以下のテキストボックス内のデータをすべて選択・コピーし、手動で保存してください。</p>
+                <textarea readonly style="width: 100%; height: 180px; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; background:#fafafa; resize:none; color: #333;">${csvContent}</textarea>
+              </div>
+            `;
+          });
         }
       });
 
       // 2. タイムラインの作成
       const timeline = [];
 
-      // 3. (1) 全画面化ボタンの設定
-      // 【変更】全画面表示を強制せず、見切れる問題を解消するためにタイムラインから除外しました。
-      /*
-      const fullscreen_trial = {
-        type: jsPsychFullscreen,
-        fullscreen_mode: true,
-        button_label: '全画面表示を開始する',
-        message: '<p class="instructions">実験を始めるには、下のボタンを押して全画面表示にしてください。</p>'
+      // 3. (0) 参加者ID入力画面の設定 (survey-textプラグインのエミュレート)
+      const survey_trial = {
+        type: "survey-text",
+        questions: [
+          { prompt: "参加者ID（例：学籍番号）を入力してください：", placeholder: "IDを入力してください" }
+        ],
+        button_label: "次へ"
       };
-      timeline.push(fullscreen_trial);
-      */
+      timeline.push(survey_trial);
 
       // 4. (2) 教示画面の設定 (ここから直接開始されます)
       const instruction_trial = {
@@ -432,12 +561,26 @@
         },
         on_finish: function(data) {
           const corr_resp = typeof data.correct_response === 'function' ? data.correct_response() : data.correct_response;
-          data.stimulus_text = typeof data.stimulus_text === 'function' ? data.stimulus_text() : data.stimulus_text;
-          data.stimulus_color = typeof data.stimulus_color === 'function' ? data.stimulus_color() : data.stimulus_color;
-          data.condition = typeof data.condition === 'function' ? data.condition() : data.condition;
+          const word = typeof data.stimulus_text === 'function' ? data.stimulus_text() : data.stimulus_text;
+          const color = typeof data.stimulus_color === 'function' ? data.stimulus_color() : data.stimulus_color;
+          const cond = typeof data.condition === 'function' ? data.condition() : data.condition;
           
+          // 独立した明確な分析用列データとして代入
+          data.word = word;
+          data.color = color;
+          data.condition = cond;
           data.correct_response = corr_resp;
-          data.correct = jsPsychInstance.pluginAPI.compareKeys(data.response, corr_resp);
+          
+          // 正解なら"true"、不正解なら"false"を文字列で確実に代入
+          const isCorrect = jsPsychInstance.pluginAPI.compareKeys(data.response, corr_resp);
+          data.correct = isCorrect ? "true" : "false";
+
+          // 参加者ID（subject_id）、実施日時（timestamp）の紐付け
+          data.subject_id = globalSubjectId;
+          
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          data.timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
         }
       };
 
