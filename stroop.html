@@ -1,40 +1,469 @@
-"rt","stimulus","response","trial_type","trial_index","time_elapsed","internal_node_id","task","word","color_rgb","congruency","correct_response","trial_index_custom","correct"
-"8550","
-        <div class=""instructions"" style=""margin-bottom: 30px;"">
-          <p>実験を始める前に、画面を全画面表示にします。</p>
-          <p style=""font-size: 16px; color: #666; margin-top: 10px;"">
-            （※埋め込み環境やセキュリティ制限により全画面化できない場合でも、実験はそのまま開始されます）
-          </p>
-        </div>
-      ","0","html-button-response","0","9062","0.0-0.0","","","","","","",""
-"1717","
-        <div class=""instructions"">
-          <p>文字の<strong>「色」</strong>をキーボードで答えてください。</p>
-          <p style=""margin: 30px 0; font-size: 26px;"">
-            <span style=""color: red; font-weight: bold; background-color: #f5f5f5; padding: 2px 8px; border-radius: 4px;"">赤色</span>の文字なら <strong style=""border: 2px solid #333; padding: 2px 10px; border-radius: 6px; background: #fff;"">r</strong> キー<br><br>
-            <span style=""color: blue; font-weight: bold; background-color: #f5f5f5; padding: 2px 8px; border-radius: 4px;"">青色</span>の文字なら <strong style=""border: 2px solid #333; padding: 2px 10px; border-radius: 6px; background: #fff;"">b</strong> キー<br><br>
-            <span style=""color: green; font-weight: bold; background-color: #f5f5f5; padding: 2px 8px; border-radius: 4px;"">緑色</span>の文字なら <strong style=""border: 2px solid #333; padding: 2px 10px; border-radius: 6px; background: #fff;"">g</strong> キー
-          </p>
-          <p style=""margin-top: 40px; color: #555; font-size: 20px;"">スペースキーを押すと実験が始まります。</p>
-        </div>
-      "," ","html-keyboard-response","1","10784","0.0-1.0","","","","","","",""
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","2","11804","0.0-2.0","","","","","","",""
-"964","<div class=""stimulus"" style=""color: blue;"">緑</div>","g","html-keyboard-response","3","12769","0.0-3.0","response","緑","blue","incongruent","b","1","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","4","14289","0.0-4.0","","","","","","",""
-"1150","<div class=""stimulus"" style=""color: green;"">赤</div>","r","html-keyboard-response","5","15440","0.0-5.0","response","赤","green","incongruent","g","2","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","6","17213","0.0-6.0","","","","","","",""
-"873","<div class=""stimulus"" style=""color: blue;"">緑</div>","g","html-keyboard-response","7","18089","0.0-7.0","response","緑","blue","incongruent","b","3","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","8","19623","0.0-8.0","","","","","","",""
-"600","<div class=""stimulus"" style=""color: blue;"">緑</div>","g","html-keyboard-response","9","20224","0.0-9.0","response","緑","blue","incongruent","b","4","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","10","21755","0.0-10.0","","","","","","",""
-"892","<div class=""stimulus"" style=""color: red;"">赤</div>","r","html-keyboard-response","11","22648","0.0-11.0","response","赤","red","congruent","r","5","true"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","12","24163","0.0-12.0","","","","","","",""
-"653","<div class=""stimulus"" style=""color: green;"">青</div>","b","html-keyboard-response","13","24816","0.0-13.0","response","青","green","incongruent","g","6","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","14","26326","0.0-14.0","","","","","","",""
-"419","<div class=""stimulus"" style=""color: green;"">緑</div>","g","html-keyboard-response","15","26747","0.0-15.0","response","緑","green","congruent","g","7","true"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","16","28268","0.0-16.0","","","","","","",""
-"840","<div class=""stimulus"" style=""color: red;"">青</div>","b","html-keyboard-response","17","29109","0.0-17.0","response","青","red","incongruent","r","8","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","18","30629","0.0-18.0","","","","","","",""
-"922","<div class=""stimulus"" style=""color: blue;"">赤</div>","r","html-keyboard-response","19","31552","0.0-19.0","response","赤","blue","incongruent","b","9","false"
-"null","<div class=""fixation"">+</div>","null","html-keyboard-response","20","33060","0.0-20.0","","","","","","",""
-"734","<div class=""stimulus"" style=""color: blue;"">青</div>","b","html-keyboard-response","21","33795","0.0-21.0","response","青","blue","congruent","b","10","true"
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ストループ課題 (Stroop Task)</title>
+
+  <style>
+    /* 画面デザインの仕様に合わせたスタイル定義 */
+    body {
+      background-color: #ffffff !important; /* 背景色: 白 */
+      color: #000000;
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif !important; /* フォントの指定 */
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-y: auto; /* コンテンツが溢れた場合にスクロールを許可 */
+      user-select: none;
+    }
+
+    /* jsPsychエミュレーション用の画面中央配置コンテナ */
+    #jspsych-target {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+      min-height: 100vh; /* 高さ100%から最小高さ100vhに変更し、スクロールに対応 */
+      padding: 24px; /* 端での文字見切れを防ぐパディング */
+      box-sizing: border-box;
+    }
+
+    /* 教示画面のテキストスタイル */
+    .instructions {
+      font-size: 24px; /* 教示は 24px */
+      line-height: 1.8;
+      text-align: center;
+      max-width: 800px;
+      margin: 20px auto;
+      word-wrap: break-word; /* 長いテキストの自動折り返し */
+    }
+
+    /* 刺激（提示文字）のスタイル */
+    .stimulus {
+      font-size: 60px; /* 刺激は 60px */
+      font-weight: bold;
+      text-align: center;
+      margin: 20px auto;
+    }
+
+    /* 注視点のスタイル */
+    .fixation {
+      font-size: 60px; /* 注視点も刺激同様のサイズで明瞭に */
+      font-weight: bold;
+      color: #333333;
+      margin: 20px auto;
+    }
+
+    /* キー表現の修飾用 */
+    .key-badge {
+      display: inline-block;
+      border: 2px solid #333333;
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin: 0 4px;
+      background-color: #f5f5f5;
+      font-family: monospace;
+      font-weight: bold;
+    }
+
+    /* ボタンデザイン */
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      background-color: #007aff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: background-color 0.2s;
+      margin-top: 20px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div id="jspsych-target"></div>
+
+  <script>
+    /************************************************************************
+     * 1. 外部接続完全ゼロ対応: 超軽量 jsPsych v7 互換マイクロエンジン (ポリフィル)
+     ************************************************************************/
+    
+    // 現在アクティブな試行におけるタイムライン変数の値を保持するコンテキスト
+    let currentTimelineVariableContext = null;
+    // 全試行のデータを蓄積するログ
+    const trialDataLog = [];
+
+    // グローバル jsPsych API のエミュレーション
+    const jsPsych = {
+      // タイムライン変数の解決関数
+      timelineVariable: function(varName) {
+        return function() {
+          if (currentTimelineVariableContext && currentTimelineVariableContext[varName] !== undefined) {
+            return currentTimelineVariableContext[varName];
+          }
+          return "";
+        };
+      },
+      pluginAPI: {
+        // キーボードレスポンスの比較処理
+        compareKeys: function(key1, key2) {
+          if (key1 === null || key2 === null) return false;
+          return String(key1).toLowerCase() === String(key2).toLowerCase();
+        }
+      },
+      data: {
+        // CSV形式でデータを画面に表示
+        displayData: function(format) {
+          if (format === 'csv') {
+            const headers = ["rt", "response", "correct", "correct_response", "stimulus_text", "stimulus_color", "condition", "task"];
+            let csvContent = headers.join(",") + "\n";
+            
+            trialDataLog.forEach(data => {
+              const row = headers.map(header => {
+                let val = data[header];
+                if (val === undefined || val === null) return "";
+                val = String(val).replace(/"/g, '""');
+                if (val.includes(",") || val.includes("\n") || val.includes('"')) {
+                  val = `"${val}"`;
+                }
+                return val;
+              });
+              csvContent += row.join(",") + "\n";
+            });
+
+            // 終了後に画面にテキストエリアでCSVを出力
+            const target = document.getElementById('jspsych-target');
+            target.innerHTML = `
+              <div style="padding: 20px; text-align: left; font-family: sans-serif; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+                <h3 style="margin-top:0; color:#333;">実験終了: 測定結果 (CSVデータ)</h3>
+                <p style="color:#666; font-size:14px; margin-bottom:10px;">以下が今回の測定データです。コピーして表計算ソフト等に貼り付けることができます。</p>
+                <textarea readonly style="width: 100%; height: 280px; font-family: monospace; font-size: 14px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; background:#fafafa; resize:none;">${csvContent}</textarea>
+                <p style="font-size:13px; color:#999; text-align:center; margin-top:10px;">[エミュレータモードで正常に完了しました]</p>
+              </div>
+            `;
+          }
+        }
+      }
+    };
+
+    // プラグイン名判定用の定義
+    const jsPsychFullscreen = "jsPsychFullscreen";
+    const jsPsychHtmlKeyboardResponse = "jsPsychHtmlKeyboardResponse";
+
+    // jsPsych 初期化関数のポリフィル
+    function initJsPsych(options) {
+      const displayElementId = options.display_element || 'jspsych-target';
+      const onFinishCallback = options.on_finish;
+
+      // タイムラインを展開して試行キューを生成
+      function expandTimeline(timelineArray) {
+        const flatQueue = [];
+
+        timelineArray.forEach(item => {
+          if (item.timeline) {
+            const vars = item.timeline_variables || [{}];
+            let selectedVars = [];
+
+            if (item.sample && item.sample.type === 'with-replacement') {
+              const size = item.sample.size || 10;
+              for (let s = 0; s < size; s++) {
+                const randIdx = Math.floor(Math.random() * vars.length);
+                selectedVars.push(vars[randIdx]);
+              }
+            } else {
+              selectedVars = [...vars];
+            }
+
+            selectedVars.forEach(vContext => {
+              item.timeline.forEach(subTrial => {
+                const boundTrial = Object.assign({}, subTrial);
+                boundTrial._variables = vContext;
+                flatQueue.push(boundTrial);
+              });
+            });
+          } else {
+            flatQueue.push(item);
+          }
+        });
+
+        return flatQueue;
+      }
+
+      // タイムラインの実行
+      jsPsych.run = function(timelineArray) {
+        const queue = expandTimeline(timelineArray);
+        let currentIdx = 0;
+        const target = document.getElementById(displayElementId);
+
+        function next() {
+          if (currentIdx >= queue.length) {
+            if (document.fullscreenElement) {
+              document.exitFullscreen().catch(() => {});
+            }
+            if (onFinishCallback) {
+              onFinishCallback();
+            }
+            return;
+          }
+
+          const trial = queue[currentIdx];
+          currentIdx++;
+
+          currentTimelineVariableContext = trial._variables || null;
+
+          function evaluateParam(param) {
+            if (typeof param === 'function') {
+              return param();
+            }
+            return param;
+          }
+
+          const stimulus = evaluateParam(trial.stimulus);
+          const choices = evaluateParam(trial.choices);
+          const duration = evaluateParam(trial.trial_duration);
+
+          const startTime = performance.now();
+          let trialFinished = false;
+          let keyListener = null;
+          let timeoutId = null;
+
+          function finishTrial(responseKey, rt) {
+            if (trialFinished) return;
+            trialFinished = true;
+
+            if (keyListener) {
+              window.removeEventListener('keydown', keyListener);
+            }
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+            }
+
+            const trialData = {};
+            if (trial.data) {
+              Object.keys(trial.data).forEach(key => {
+                trialData[key] = evaluateParam(trial.data[key]);
+              });
+            }
+
+            trialData.rt = rt;
+            trialData.response = responseKey;
+
+            if (trial.on_finish) {
+              trial.on_finish(trialData);
+            }
+
+            if (trialData.task) {
+              trialDataLog.push(trialData);
+            }
+
+            setTimeout(next, 0);
+          }
+
+          // ① 全画面化プラグインのエミュレーション (今回はタイムラインから削除したため通りません)
+          if (trial.type === jsPsychFullscreen) {
+            const buttonLabel = trial.button_label || "Continue";
+            target.innerHTML = `
+              <div class="instructions">
+                ${stimulus}
+                <button id="jspsych-fullscreen-btn">${buttonLabel}</button>
+              </div>
+            `;
+            
+            const btn = document.getElementById('jspsych-fullscreen-btn');
+            btn.addEventListener('click', () => {
+              if (trial.fullscreen_mode) {
+                const docElm = document.documentElement;
+                if (docElm.requestFullscreen) {
+                  docElm.requestFullscreen().catch((err) => {
+                    console.warn("Fullscreen request denied:", err);
+                  });
+                }
+              }
+              const rt = performance.now() - startTime;
+              finishTrial('click', rt);
+            });
+            return;
+          }
+
+          // ② キーボード反応プラグインのエミュレーション
+          target.innerHTML = stimulus || "";
+
+          // キー入力待ち
+          if (choices !== "NO_KEYS") {
+            keyListener = function(event) {
+              let pressedKey = event.key;
+              if (pressedKey === ' ') pressedKey = ' ';
+              
+              const isAllowed = !choices || choices.length === 0 || choices.includes(pressedKey.toLowerCase()) || choices.includes(pressedKey);
+              
+              if (isAllowed) {
+                const rt = performance.now() - startTime;
+                finishTrial(pressedKey, rt);
+              }
+            };
+            window.addEventListener('keydown', keyListener);
+          }
+
+          // タイムアウト設定
+          if (duration !== undefined && duration !== null && duration > 0) {
+            timeoutId = setTimeout(() => {
+              finishTrial(null, null);
+            }, duration);
+          }
+        }
+
+        next();
+      };
+
+      return jsPsych;
+    }
+
+
+    /************************************************************************
+     * 2. ストループ課題 実験定義プログラム
+     ************************************************************************/
+    window.onload = function() {
+      startExperiment();
+    };
+
+    function startExperiment() {
+      // 1. jsPsych の初期化
+      const jsPsychInstance = initJsPsych({
+        display_element: 'jspsych-target',
+        on_finish: function() {
+          jsPsych.data.displayData('csv');
+        }
+      });
+
+      // 2. タイムラインの作成
+      const timeline = [];
+
+      // 3. (1) 全画面化ボタンの設定
+      // 【変更】全画面表示を強制せず、見切れる問題を解消するためにタイムラインから除外しました。
+      /*
+      const fullscreen_trial = {
+        type: jsPsychFullscreen,
+        fullscreen_mode: true,
+        button_label: '全画面表示を開始する',
+        message: '<p class="instructions">実験を始めるには、下のボタンを押して全画面表示にしてください。</p>'
+      };
+      timeline.push(fullscreen_trial);
+      */
+
+      // 4. (2) 教示画面の設定 (ここから直接開始されます)
+      const instruction_trial = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+          <div class="instructions">
+            <p>文字の<strong>「色」</strong>をできるだけ早く、正確にキーボードで答えてください。</p>
+            <p>文字の意味（例: "青"という文字）に惑わされないように注意してください。</p>
+            <hr style="border: 0; border-top: 1px solid #ccc; margin: 20px 0;">
+            <p><span style="color: #ff3b30; font-weight: bold;">赤色</span>の文字なら <span class="key-badge">r</span> キー</p>
+            <p><span style="color: #007aff; font-weight: bold;">青色</span>の文字なら <span class="key-badge">b</span> キー</p>
+            <p><span style="color: #34c759; font-weight: bold;">緑色</span>の文字なら <span class="key-badge">g</span> キー</p>
+            <hr style="border: 0; border-top: 1px solid #ccc; margin: 20px 0;">
+            <p><strong>スペースキー</strong>を押すと実験が始まります。</p>
+          </div>
+        `,
+        choices: [' '] // スペースキーのみ受け付ける
+      };
+      timeline.push(instruction_trial);
+
+      // 5. 刺激 (Stimuli) - 要因計画の定義
+      const color_map = {
+        red: '#ff3b30',
+        blue: '#007aff',
+        green: '#34c759'
+      };
+
+      const stimuli_pool = [
+        // 一致条件 (Congruent)
+        { text: "赤", color: "red", color_code: color_map.red, condition: "congruent", correct_response: "r" },
+        { text: "青", color: "blue", color_code: color_map.blue, condition: "congruent", correct_response: "b" },
+        { text: "緑", color: "green", color_code: color_map.green, condition: "congruent", correct_response: "g" },
+        
+        // 不一致条件 (Incongruent)
+        { text: "赤", color: "blue", color_code: color_map.blue, condition: "incongruent", correct_response: "b" },
+        { text: "赤", color: "green", color_code: color_map.green, condition: "incongruent", correct_response: "g" },
+        { text: "青", color: "red", color_code: color_map.red, condition: "incongruent", correct_response: "r" },
+        { text: "青", color: "green", color_code: color_map.green, condition: "incongruent", correct_response: "g" },
+        { text: "緑", color: "red", color_code: color_map.red, condition: "incongruent", correct_response: "r" },
+        { text: "緑", color: "blue", color_code: color_map.blue, condition: "incongruent", correct_response: "b" }
+      ];
+
+      // 6. メイン試行ループの構成要素
+
+      // a. 注視点 (+): 500ms 表示
+      const fixation = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div class="fixation">+</div>',
+        choices: "NO_KEYS",
+        trial_duration: 500,
+        data: { task: 'fixation' }
+      };
+
+      // b. 刺激提示: キー入力があるまで表示
+      const target = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+          const text = jsPsychInstance.timelineVariable('text')();
+          const color_code = jsPsychInstance.timelineVariable('color_code')();
+          return `<div class="stimulus" style="color: ${color_code};">${text}</div>`;
+        },
+        choices: ['r', 'b', 'g'],
+        data: {
+          task: 'response',
+          correct_response: jsPsychInstance.timelineVariable('correct_response'),
+          stimulus_text: jsPsychInstance.timelineVariable('text'),
+          stimulus_color: jsPsychInstance.timelineVariable('color'),
+          condition: jsPsychInstance.timelineVariable('condition')
+        },
+        on_finish: function(data) {
+          const corr_resp = typeof data.correct_response === 'function' ? data.correct_response() : data.correct_response;
+          data.stimulus_text = typeof data.stimulus_text === 'function' ? data.stimulus_text() : data.stimulus_text;
+          data.stimulus_color = typeof data.stimulus_color === 'function' ? data.stimulus_color() : data.stimulus_color;
+          data.condition = typeof data.condition === 'function' ? data.condition() : data.condition;
+          
+          data.correct_response = corr_resp;
+          data.correct = jsPsychInstance.pluginAPI.compareKeys(data.response, corr_resp);
+        }
+      };
+
+      // c. 試行間隔 (ITI): 1000ms
+      const iti = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '',
+        choices: "NO_KEYS",
+        trial_duration: 1000,
+        data: { task: 'iti' }
+      };
+
+      // 10回繰り返しランダムサンプリング
+      const test_procedure = {
+        timeline: [fixation, target, iti],
+        timeline_variables: stimuli_pool,
+        sample: {
+          type: 'with-replacement',
+          size: 10
+        }
+      };
+      timeline.push(test_procedure);
+
+      // 実験の開始
+      jsPsychInstance.run(timeline);
+    }
+  </script>
+</body>
+</html>
