@@ -20,55 +20,39 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            overflow-x: hidden; /* スマホでの横スクロールを防止 */
         }
         .jspsych-content { 
-            max-width: 100%; /* スマホの画面幅に収める */
-            width: 600px; 
+            max-width: 600px; 
+            width: 100%; 
             line-height: 1.6;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             color: #333;
-            box-sizing: border-box;
-            padding: 10px;
-        }
-        /* Canvasをレスポンシブ化し、タッチをスライダーに透過させる */
-        canvas {
-            max-width: 100%;
-            height: auto !important;
-            pointer-events: none; /* 透明な余白部分のタッチイベントを透過 */
-            display: block;
-            margin: 0 auto 15px auto;
         }
         .jspsych-btn {
-            padding: 12px 24px;
-            font-size: 1.1rem;
+            padding: 15px 30px;
+            font-size: 1.2rem;
             border-radius: 50px;
             background-color: #007bff;
             color: white;
             border: none;
             margin-top: 20px;
             cursor: pointer;
-            -webkit-tap-highlight-color: transparent; /* タップ時の青い選択枠を消す */
         }
         .trial-counter {
             color: #6c757d;
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
-        /* スライダーをスマホ向けに最適化 */
         input[type=range] {
-            width: 90%;
+            width: 80%;
             max-width: 400px;
-            height: 44px; /* タッチしやすいサイズに変更 */
-            touch-action: none; /* ドラッグ操作時に画面全体がスクロールするのを防止 */
-            position: relative;
-            z-index: 10; /* Canvasよりも手前に配置して確実に操作できるようにする */
-            cursor: pointer;
+            height: 40px;
         }
     </style>
 </head>
 <body>
     <script>
+        // データ送信先のGASのURL
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzN66oybgeBB7gY7xoyVFE1-BbS18HgzwR7MtEOYx38-0zlHXdAApKwGrbtkdZBdTTizA/exec';
 
         const jsPsych = initJsPsych({
@@ -96,6 +80,7 @@
             }
         });
 
+        // 実験条件の設定
         const angles = [15, 75];
         const finLengths = [20, 50];
         const trials = [];
@@ -108,12 +93,14 @@
         }
         const shuffledTrials = jsPsych.randomization.shuffle(trials);
 
+        // 学籍番号の入力
         const id_input = {
             type: jsPsychSurveyText,
             questions: [{ prompt: "学籍番号を入力してください", name: 'student_id', required: true }],
             button_label: '開始する'
         };
 
+        // 実験説明画面
         const welcome = {
             type: jsPsychHtmlButtonResponse,
             stimulus: `
@@ -125,8 +112,9 @@
             choices: ['実験を始める']
         };
 
+        // 実験試行のタイムライン
         const experimentTimeline = shuffledTrials.map((trial, index) => {
-            const initialValue = Math.floor(Math.random() * 201) + 100;
+            const initialValue = Math.floor(Math.random() * 201) + 100; // 100から300のランダム値
             return {
                 type: jsPsychCanvasSliderResponse,
                 prompt: `<div class="trial-counter">現在 ${index + 1} 回目 / 全 12 回</div>`,
@@ -135,54 +123,56 @@
                 max: 350,
                 start: initialValue,
                 button_label: '決定',
-                canvas_size: [400, 600], // [height, width]
+                canvas_size: [400, 600], // [高さ, 幅]
                 stimulus: function(c) {
-                    // jsPsych側の仕様対策：初期ロード時に描画コンテキストをクリアだけしておく
                     const ctx = c.getContext('2d');
-                    ctx.clearRect(0, 0, 600, 400);
-                },
-                on_load: function() {
-                    const display = jsPsych.getDisplayElement();
-                    const canvas = display.querySelector('canvas');
-                    const slider = display.querySelector('input[type="range"]');
-                    if (!canvas || !slider) return;
-
-                    const ctx = canvas.getContext('2d');
-                    const centerX = 300; // キャンバスの基準中央座標(600pxの半分)
-
-                    // スライダー値に基づいて再描画を行う関数
-                    const updateVisual = () => {
-                        const sliderVal = parseInt(slider.value);
-                        ctx.clearRect(0, 0, 600, 400);
+                    
+                    // 表示されているスライダー（HTMLのinput要素）を直接取得
+                    const slider = document.querySelector('input[type="range"]') || (c.parentElement ? c.parentElement.querySelector('input[type="range"]') : null);
+                    
+                    // スライダーの値に応じて図形を再描画する関数
+                    function draw(val) {
+                        const centerX = 300; // キャンバスの中央（幅600の半分）
+                        ctx.clearRect(0, 0, 600, 400); // キャンバスを一度クリアにする
                         ctx.lineWidth = 2;
-                        // 上の図形（内向き矢印・標準刺激: 長さ 200px 固定）
+                        
+                        // 上の図形（基準刺激：内向きの羽 = 長さ200px固定）
                         drawMullerLyer(ctx, centerX, 100, 200, trial.angle, trial.finLength, true);
-                        // 下の図形（外向き矢印・調整刺激: スライダーの値に応じて伸縮）
-                        drawMullerLyer(ctx, centerX, 300, sliderVal, trial.angle, trial.finLength, false);
-                    };
-
-                    // スライダー操作時に即時反映させるイベントを登録（PC/スマホ両対応）
-                    slider.addEventListener('input', updateVisual);
-                    // 初期位置での初回描画
-                    updateVisual();
+                        
+                        // 下の図形（比較刺激：外向きの羽 = スライダーの値 val で長さがリアルタイム変化）
+                        drawMullerLyer(ctx, centerX, 300, val, trial.angle, trial.finLength, false);
+                    }
+                    
+                    // 1. 初回の描画（初期位置で表示）
+                    draw(initialValue);
+                    
+                    // 2. スライダーが動いた（ドラッグ中）時に、リアルタイムで再描画するイベントを登録
+                    if (slider) {
+                        slider.addEventListener('input', function() {
+                            draw(parseInt(slider.value));
+                        });
+                    }
                 },
                 on_finish: function(data) {
                     data.adjustment = parseInt(data.response);
+                    data.angle = trial.angle;
+                    data.finLength = trial.finLength;
                 }
             };
         });
 
+        // ミュラー・リヤー錯視図形の描画関数
         function drawMullerLyer(ctx, x, y, length, angleDeg, finLen, isInward) {
             const angleRad = (angleDeg * Math.PI) / 180;
             const halfLen = length / 2;
             
-            // 主幹となる横線を描画
+            // 主線の描画
             ctx.beginPath();
             ctx.moveTo(x - halfLen, y);
             ctx.lineTo(x + halfLen, y);
             ctx.stroke();
             
-            // 左右の羽を描画
+            // 羽（矢羽）の描画
             const ends = [x - halfLen, x + halfLen];
             ends.forEach(ex => {
                 const direction = (ex === x - halfLen) ? 1 : -1;
@@ -199,6 +189,7 @@
             });
         }
 
+        // 実験の実行
         jsPsych.run([id_input, welcome, ...experimentTimeline]);
     </script>
 </body>
