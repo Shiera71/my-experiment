@@ -20,67 +20,196 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            overflow-x: hidden; /* スマホでの横スクロールを防止 */
         }
         .jspsych-content { 
-            max-width: 600px; 
-            width: 100%; 
+            max-width: 100%; /* スマホの画面幅に収める */
+            width: 600px; 
             line-height: 1.6;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #333;
+            box-sizing: border-box;
+            padding: 10px;
+        }
+        /* Canvasをレスポンシブ化し、タッチをスライダーに透過させる */
+        canvas {
+            max-width: 100%;
+            height: auto !important;
+            pointer-events: none; /* 透明な余白部分のタッチイベントを透過 */
+            display: block;
+            margin: 0 auto 15px auto;
         }
         .jspsych-btn {
-            padding: 15px 30px;
-            font-size: 1.2rem;
+            padding: 12px 24px;
+            font-size: 1.1rem;
             border-radius: 50px;
             background-color: #007bff;
             color: white;
             border: none;
             margin-top: 20px;
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent; /* タップ時の青い選択枠を消す */
         }
         .trial-counter {
             color: #6c757d;
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
+        /* スライダーをスマホ向けに最適化 */
         input[type=range] {
-            width: 80%;
+            width: 90%;
             max-width: 400px;
-            height: 40px;
+            height: 44px; /* タッチしやすいサイズに変更 */
+            touch-action: none; /* ドラッグ操作時に画面全体がスクロールするのを防止 */
+            position: relative;
+            z-index: 10; /* Canvasよりも手前に配置して確実に操作できるようにする */
+            cursor: pointer;
+        }
+        /* データ保存用フォールバックUIのスタイル */
+        .backup-container {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .backup-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #dc3545;
+            margin-bottom: 10px;
+        }
+        .csv-textarea {
+            width: 100%;
+            height: 120px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+        .download-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-top: 10px;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
     <script>
-        // データ送信先のGASのURL
+        // ※作成したGoogle Apps Script (GAS) の「ウェブアプリURL」に置き換えてください
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzN66oybgeBB7gY7xoyVFE1-BbS18HgzwR7MtEOYx38-0zlHXdAApKwGrbtkdZBdTTizA/exec';
 
         const jsPsych = initJsPsych({
             on_finish: function() {
                 const display = jsPsych.getDisplayElement();
-                display.innerHTML = '<p>データを送信中です...</p>';
+                display.innerHTML = '<p>データをスプレッドシートに送信中です...</p>';
+                
+                // canvas-slider-response の試行データのみを抽出
                 const allData = jsPsych.data.get().filter({trial_type: 'canvas-slider-response'});
-                const subjectId = jsPsych.data.get().values()[0].response.student_id;
+                
+                // survey-text から学籍番号を安全に取得
+                const surveyData = jsPsych.data.get().filter({trial_type: 'survey-text'}).values()[0];
+                const subjectId = (surveyData && surveyData.response) ? surveyData.response.student_id : 'unknown';
+                
+                // 【重要】取得対象の5つの項目を格納して配列に整形
+                // - subject_id: 学籍番号
+                // - timestamp: 実験日時
+                // - angle: 矢印の角度 (15度 または 75度)
+                // - wing_length: 羽の長さ (20px または 50px)
+                // - pse: 主観的等価点（参加者がぴったり同じと判断した時の調整サイズ。基準サイズは 200px）
+                // - error_amount: 錯視量・誤差（pse - 200px）
                 const exportData = allData.values().map(d => ({
                     subject_id: subjectId,
-                    timestamp: d.time_end,
+                    timestamp: new Date(d.time_end).toLocaleString('ja-JP'), // 読みやすい日時に変換
                     angle: d.angle,
                     wing_length: d.finLength,
                     pse: d.adjustment,
-                    error_amount: d.adjustment - 200
+                    error_amount: d.adjustment - 200 // 錯視量（調整サイズ - 基準サイズ200px）
                 }));
+
+                // バックアップ用のCSVテキストを作成
+                let csvContent = "subject_id,timestamp,angle,wing_length,pse,error_amount\n";
+                exportData.forEach(row => {
+                    csvContent += `${row.subject_id},"${row.timestamp}",${row.angle},${row.wing_length},${row.pse},${row.error_amount}\n`;
+                });
+
+                // Google Apps ScriptへPOST送信
                 fetch(GAS_URL, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(exportData)
                 }).then(() => {
-                    display.innerHTML = '<h1>ありがとうございました</h1><p>これで実験はすべて終了です。</p>';
+                    showEndScreen(display, true, csvContent, subjectId);
+                }).catch((error) => {
+                    console.error('Error:', error);
+                    showEndScreen(display, false, csvContent, subjectId);
                 });
             }
         });
 
-        // 実験条件の設定
+        // 実験終了画面の表示（送信成功・失敗にかかわらずデータを保持表示する）
+        function showEndScreen(displayElement, isSuccess, csvContent, subjectId) {
+            let statusHtml = '';
+            if (isSuccess) {
+                statusHtml = `
+                    <h1 style="color: #28a745;">ありがとうございました</h1>
+                    <p>データはスプレッドシートへ自動送信されました。これで実験はすべて終了です。</p>
+                `;
+            } else {
+                statusHtml = `
+                    <h1 style="color: #dc3545;">データ自動送信に制限が発生しました</h1>
+                    <p>インターネット環境または設定によりスプレッドシートへの直接書き込みが遮断されました。</p>
+                    <p>お手数ですが、<strong>下記の方法でデータを保存・コピーして、実験担当者へ送付してください</strong>。</p>
+                `;
+            }
+
+            // 共通のデータ回収バックアップエリアを表示
+            const backupArea = `
+                ${statusHtml}
+                <div class="backup-container">
+                    <div class="backup-title">📥 実験データ回収用バックアップ</div>
+                    <p style="font-size: 0.9rem; margin: 5px 0;">スプレッドシートの自動記録が失敗していた場合に備え、以下のいずれかの方法でデータを保存しておくと安心です。</p>
+                    
+                    <!-- CSVダウンロードボタン -->
+                    <button class="download-btn" id="btn-download">CSVファイルとして保存</button>
+                    
+                    <!-- コピペ用エリア -->
+                    <p style="font-size: 0.9rem; margin: 15px 0 5px 0; font-weight: bold;">または、以下のテキストをすべて選択してコピーしてください：</p>
+                    <textarea class="csv-textarea" id="csv-text" readonly>${csvContent}</textarea>
+                </div>
+            `;
+
+            displayElement.innerHTML = backupArea;
+
+            // ダウンロードイベントのバインド
+            document.getElementById('btn-download').addEventListener('click', () => {
+                const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // Excelでの文字化け防止用BOM
+                const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `muller_lyer_data_${subjectId}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+
+            // テキストエリアクリック時に自動全選択
+            document.getElementById('csv-text').addEventListener('click', function() {
+                this.select();
+            });
+        }
+
         const angles = [15, 75];
         const finLengths = [20, 50];
         const trials = [];
@@ -93,14 +222,12 @@
         }
         const shuffledTrials = jsPsych.randomization.shuffle(trials);
 
-        // 学籍番号の入力
         const id_input = {
             type: jsPsychSurveyText,
             questions: [{ prompt: "学籍番号を入力してください", name: 'student_id', required: true }],
             button_label: '開始する'
         };
 
-        // 実験説明画面
         const welcome = {
             type: jsPsychHtmlButtonResponse,
             stimulus: `
@@ -112,9 +239,8 @@
             choices: ['実験を始める']
         };
 
-        // 実験試行のタイムライン
         const experimentTimeline = shuffledTrials.map((trial, index) => {
-            const initialValue = Math.floor(Math.random() * 201) + 100; // 100から300のランダム値
+            const initialValue = Math.floor(Math.random() * 201) + 100;
             return {
                 type: jsPsychCanvasSliderResponse,
                 prompt: `<div class="trial-counter">現在 ${index + 1} 回目 / 全 12 回</div>`,
@@ -123,56 +249,55 @@
                 max: 350,
                 start: initialValue,
                 button_label: '決定',
-                canvas_size: [400, 600], // [高さ, 幅]
+                canvas_size: [400, 600], // [height, width]
+                // 試行データとして angle と finLength を jsPsych の内部データに保存する
+                data: {
+                    angle: trial.angle,
+                    finLength: trial.finLength
+                },
                 stimulus: function(c) {
                     const ctx = c.getContext('2d');
-                    
-                    // 表示されているスライダー（HTMLのinput要素）を直接取得
-                    const slider = document.querySelector('input[type="range"]') || (c.parentElement ? c.parentElement.querySelector('input[type="range"]') : null);
-                    
-                    // スライダーの値に応じて図形を再描画する関数
-                    function draw(val) {
-                        const centerX = 300; // キャンバスの中央（幅600の半分）
-                        ctx.clearRect(0, 0, 600, 400); // キャンバスを一度クリアにする
+                    ctx.clearRect(0, 0, 600, 400);
+                },
+                on_load: function() {
+                    const display = jsPsych.getDisplayElement();
+                    const canvas = display.querySelector('canvas');
+                    const slider = display.querySelector('input[type="range"]');
+                    if (!canvas || !slider) return;
+
+                    const ctx = canvas.getContext('2d');
+                    const centerX = 300; // キャンバスの基準中央座標
+
+                    const updateVisual = () => {
+                        const sliderVal = parseInt(slider.value);
+                        ctx.clearRect(0, 0, 600, 400);
                         ctx.lineWidth = 2;
-                        
-                        // 上の図形（基準刺激：内向きの羽 = 長さ200px固定）
+                        // 上の図形（内向き矢印・標準刺激: 長さ 200px 固定）
                         drawMullerLyer(ctx, centerX, 100, 200, trial.angle, trial.finLength, true);
-                        
-                        // 下の図形（比較刺激：外向きの羽 = スライダーの値 val で長さがリアルタイム変化）
-                        drawMullerLyer(ctx, centerX, 300, val, trial.angle, trial.finLength, false);
-                    }
-                    
-                    // 1. 初回の描画（初期位置で表示）
-                    draw(initialValue);
-                    
-                    // 2. スライダーが動いた（ドラッグ中）時に、リアルタイムで再描画するイベントを登録
-                    if (slider) {
-                        slider.addEventListener('input', function() {
-                            draw(parseInt(slider.value));
-                        });
-                    }
+                        // 下の図形（外向き矢印・調整刺激: スライダーの値に応じて伸縮）
+                        drawMullerLyer(ctx, centerX, 300, sliderVal, trial.angle, trial.finLength, false);
+                    };
+
+                    slider.addEventListener('input', updateVisual);
+                    updateVisual();
                 },
                 on_finish: function(data) {
                     data.adjustment = parseInt(data.response);
-                    data.angle = trial.angle;
-                    data.finLength = trial.finLength;
                 }
             };
         });
 
-        // ミュラー・リヤー錯視図形の描画関数
         function drawMullerLyer(ctx, x, y, length, angleDeg, finLen, isInward) {
             const angleRad = (angleDeg * Math.PI) / 180;
             const halfLen = length / 2;
             
-            // 主線の描画
+            // 主幹となる横線を描画
             ctx.beginPath();
             ctx.moveTo(x - halfLen, y);
             ctx.lineTo(x + halfLen, y);
             ctx.stroke();
             
-            // 羽（矢羽）の描画
+            // 左右の羽を描画
             const ends = [x - halfLen, x + halfLen];
             ends.forEach(ex => {
                 const direction = (ex === x - halfLen) ? 1 : -1;
@@ -189,7 +314,6 @@
             });
         }
 
-        // 実験の実行
         jsPsych.run([id_input, welcome, ...experimentTimeline]);
     </script>
 </body>
