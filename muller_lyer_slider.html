@@ -20,33 +20,50 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            overflow-x: hidden; /* スマホでの横スクロールを防止 */
         }
         .jspsych-content { 
-            max-width: 600px; 
-            width: 100%; 
+            max-width: 100%; /* スマホの画面幅に収める */
+            width: 600px; 
             line-height: 1.6;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #333;
+            box-sizing: border-box;
+            padding: 10px;
+        }
+        /* Canvasをレスポンシブ化し、タッチをスライダーに透過させる */
+        canvas {
+            max-width: 100%;
+            height: auto !important;
+            pointer-events: none; /* 透明な余白部分のタッチイベントを透過 */
+            display: block;
+            margin: 0 auto 15px auto;
         }
         .jspsych-btn {
-            padding: 15px 30px;
-            font-size: 1.2rem;
+            padding: 12px 24px;
+            font-size: 1.1rem;
             border-radius: 50px;
             background-color: #007bff;
             color: white;
             border: none;
             margin-top: 20px;
             cursor: pointer;
+            -webkit-tap-highlight-color: transparent; /* タップ時の青い選択枠を消す */
         }
         .trial-counter {
             color: #6c757d;
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
+        /* スライダーをスマホ向けに最適化 */
         input[type=range] {
-            width: 80%;
+            width: 90%;
             max-width: 400px;
-            height: 40px;
+            height: 44px; /* タッチしやすいサイズに変更 */
+            touch-action: none; /* ドラッグ操作時に画面全体がスクロールするのを防止 */
+            position: relative;
+            z-index: 10; /* Canvasよりも手前に配置して確実に操作できるようにする */
+            cursor: pointer;
         }
     </style>
 </head>
@@ -118,16 +135,36 @@
                 max: 350,
                 start: initialValue,
                 button_label: '決定',
-                canvas_size: [400, 600],
+                canvas_size: [400, 600], // [height, width]
                 stimulus: function(c) {
+                    // jsPsych側の仕様対策：初期ロード時に描画コンテキストをクリアだけしておく
                     const ctx = c.getContext('2d');
-                    const slider = jsPsych.getDisplayElement().querySelector('input');
-                    const sliderVal = slider ? slider.value : initialValue;
-                    const centerX = 300;
                     ctx.clearRect(0, 0, 600, 400);
-                    ctx.lineWidth = 2;
-                    drawMullerLyer(ctx, centerX, 100, 200, trial.angle, trial.finLength, true);
-                    drawMullerLyer(ctx, centerX, 300, parseInt(sliderVal), trial.angle, trial.finLength, false);
+                },
+                on_load: function() {
+                    const display = jsPsych.getDisplayElement();
+                    const canvas = display.querySelector('canvas');
+                    const slider = display.querySelector('input[type="range"]');
+                    if (!canvas || !slider) return;
+
+                    const ctx = canvas.getContext('2d');
+                    const centerX = 300; // キャンバスの基準中央座標(600pxの半分)
+
+                    // スライダー値に基づいて再描画を行う関数
+                    const updateVisual = () => {
+                        const sliderVal = parseInt(slider.value);
+                        ctx.clearRect(0, 0, 600, 400);
+                        ctx.lineWidth = 2;
+                        // 上の図形（内向き矢印・標準刺激: 長さ 200px 固定）
+                        drawMullerLyer(ctx, centerX, 100, 200, trial.angle, trial.finLength, true);
+                        // 下の図形（外向き矢印・調整刺激: スライダーの値に応じて伸縮）
+                        drawMullerLyer(ctx, centerX, 300, sliderVal, trial.angle, trial.finLength, false);
+                    };
+
+                    // スライダー操作時に即時反映させるイベントを登録（PC/スマホ両対応）
+                    slider.addEventListener('input', updateVisual);
+                    // 初期位置での初回描画
+                    updateVisual();
                 },
                 on_finish: function(data) {
                     data.adjustment = parseInt(data.response);
@@ -138,16 +175,21 @@
         function drawMullerLyer(ctx, x, y, length, angleDeg, finLen, isInward) {
             const angleRad = (angleDeg * Math.PI) / 180;
             const halfLen = length / 2;
+            
+            // 主幹となる横線を描画
             ctx.beginPath();
             ctx.moveTo(x - halfLen, y);
             ctx.lineTo(x + halfLen, y);
             ctx.stroke();
+            
+            // 左右の羽を描画
             const ends = [x - halfLen, x + halfLen];
             ends.forEach(ex => {
                 const direction = (ex === x - halfLen) ? 1 : -1;
                 const sign = isInward ? -1 : 1;
                 const deltaX = finLen * Math.cos(angleRad) * direction * sign;
                 const deltaY = finLen * Math.sin(angleRad);
+                
                 ctx.beginPath();
                 ctx.moveTo(ex, y);
                 ctx.lineTo(ex + deltaX, y - deltaY);
